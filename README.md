@@ -46,9 +46,8 @@ Answers questions about my background, research, and GitHub repos. Books intervi
           │ top-k chunks
           ▼
    ┌──────────────┐
-   │  Groq API    │
-   │  llama-3.3-  │
-   │  70b (FREE)  │
+   │ lama-3.1-8b-
+      instant  │
    └──────────────┘
 
 Data sources ingested into ChromaDB:
@@ -64,7 +63,7 @@ Data sources ingested into ChromaDB:
 
 | Component | Service | Cost | Free Alternative |
 |-----------|---------|------|-----------------|
-| LLM inference | Groq (llama-3.3-70b) | Free (6k TPM) | Ollama (fully local) |
+| LLM inference | Groq (lama-3.1-8b-instant) | Free (6k TPM) | Ollama (fully local) |
 | Embeddings | all-MiniLM-L6-v2 | Free (local) | — already free |
 | Vector DB | ChromaDB | Free (local/disk) | FAISS |
 | Voice agent | Vapi | ~$0.05/min, $10 free credit | Retell AI (similar free credit) |
