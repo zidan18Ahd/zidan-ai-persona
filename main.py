@@ -49,7 +49,7 @@ async def chat(req: ChatRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/vapi/webhook")
+@app.post("/vapi/webhook/chat/completions")
 async def vapi_webhook(request: Request):
     # Core webhook listener tracking live events and tool routing from Vapi voice calls
     body = await request.json()
