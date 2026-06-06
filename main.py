@@ -51,10 +51,38 @@ async def chat(req: ChatRequest):
 
 @app.post("/vapi/webhook/chat/completions")
 async def vapi_webhook(request: Request):
-    # Core webhook listener tracking live events and tool routing from Vapi voice calls
-    body = await request.json()
-    result = await handle_webhook(body)
-    return JSONResponse(result)
+    try:
+        body = await request.json()
+        
+        # Check if this request is a Custom LLM chat completion request from Vapi
+        if "messages" in body:
+            messages = body.get("messages", [])
+            user_query = messages[-1]["content"] if messages else ""
+            
+            # Query your local RAG system directly
+            answer = await get_answer(user_query, mode="voice")
+            
+            # Format the output in the strict OpenAI format Vapi demands
+            return JSONResponse({
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {
+                            "role": "assistant",
+                            "content": answer
+                        },
+                        "finish_reason": "stop"
+                    }
+                ]
+            })
+            
+        # Fall back to your original vapi/handler.py webhook system for other events
+        result = await handle_webhook(body)
+        return JSONResponse(result)
+        
+    except Exception as e:
+        print(f"Error in vapi completions webhook: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/health")
 async def health():
