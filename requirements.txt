@@ -1,0 +1,28 @@
+# Core server
+fastapi==0.115.6
+uvicorn[standard]==0.32.1
+python-multipart==0.0.12
+httpx==0.28.1
+pydantic==2.10.4
+
+# LLM + RAG
+groq==0.13.1                        # Free tier: llama-3.3-70b-versatile
+langchain
+langchain-community
+langchain-core
+
+# Embeddings (free, local)
+sentence-transformers==3.3.1
+torch==2.5.1                        # CPU only is fine; add --index-url for GPU
+
+# Vector store (free, local)
+chromadb==0.6.3
+
+# PDF loading
+pypdf==5.1.0
+pdfminer.six
+
+# Utilities
+python-dotenv==1.0.1
+requests==2.32.3
+aiofiles==24.1.0

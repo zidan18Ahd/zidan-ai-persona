@@ -1,0 +1,68 @@
+{
+  "name": "Zidan Ahmed - AI Representative",
+  "model": {
+    "provider": "groq",
+    "model": "llama-3.3-70b-versatile",
+    "temperature": 0.2,
+    "maxTokens": 200,
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are Zidan Ahmed's AI representative on a phone call. Keep answers under 3 sentences since this is voice. You are an AI/ML researcher at NIT Silchar with internships at CMU and Duke. Be specific and honest."
+      }
+    ],
+    "functions": [
+      {
+        "name": "check_availability",
+        "description": "Check Zidan's available interview slots",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "date": {
+              "type": "string",
+              "description": "Optional date hint"
+            }
+          }
+        }
+      },
+      {
+        "name": "book_appointment",
+        "description": "Book a confirmed interview slot",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string" },
+            "email": { "type": "string" },
+            "slot_time": { "type": "string" },
+            "notes": { "type": "string" }
+          },
+          "required": ["name", "email", "slot_time"]
+        }
+      },
+      {
+        "name": "answer_question",
+        "description": "RAG lookup for detailed questions about Zidan's background",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "question": { "type": "string" }
+          },
+          "required": ["question"]
+        }
+      }
+    ]
+  },
+  "voice": {
+    "provider": "11labs",
+    "voiceId": "pNInz6obpgDQGcFmaJgB",
+    "stability": 0.5,
+    "similarityBoost": 0.75
+  },
+  "firstMessage": "Hi! I'm Zidan Ahmed's AI representative. I can answer questions about his research and background, or help schedule an interview. What brings you here today?",
+  "serverUrl": "https://YOUR_RENDER_URL_HERE/vapi/webhook",
+  "serverUrlSecret": "",
+  "endCallFunctionEnabled": true,
+  "silenceTimeoutSeconds": 30,
+  "maxDurationSeconds": 600,
+  "backchannelingEnabled": true
+}
