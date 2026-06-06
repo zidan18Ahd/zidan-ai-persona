@@ -54,17 +54,16 @@ async def chat(req: ChatRequest):
 async def vapi_webhook(request: Request):
     try:
         body = await request.json()
-        print(f"Received Vapi request payload: {body}")  # This will print in Render logs
         
-        # 1. Check if Vapi is asking for Custom LLM text response content
+        # 1. Check if Vapi is requesting a Custom LLM text reply
         if "messages" in body:
             messages = body.get("messages", [])
             user_query = messages[-1]["content"] if messages else ""
             
-            # Query your local RAG system directly
-            answer = await get_answer(user_query, mode="voice")
+            # Match get_answer parameter signature precisely (query, history)
+            answer = await get_answer(user_query, [])
             
-            # Format the payload in the strict OpenAI format Vapi demands
+            # Wrap response back into the layout structure Vapi expects
             return JSONResponse({
                 "choices": [
                     {
@@ -78,12 +77,12 @@ async def vapi_webhook(request: Request):
                 ]
             })
             
-        # 2. Fall back to your original vapi/handler.py system for regular webhooks
+        # 2. Safe fallback for structural configurations and post-call reports
         result = await handle_webhook(body)
         return JSONResponse(result)
         
     except Exception as e:
-        print(f"Error in vapi completions webhook: {e}")
+        print(f"Error handling completions webhook request: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/health")
