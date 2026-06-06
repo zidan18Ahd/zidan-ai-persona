@@ -12,7 +12,7 @@ from .ingest import get_vectorstore
 from .prompts import SYSTEM_PROMPT, VOICE_SYSTEM_PROMPT, format_context
 
 groq_client = AsyncGroq(api_key=os.getenv("GROQ_API_KEY"))
-GROQ_MODEL = "llama-3.3-70b-versatile"
+GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
 
 # Load vectorstore once globally so we don't rebuild it on every request
 _vectorstore = None
