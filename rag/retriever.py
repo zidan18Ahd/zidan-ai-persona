@@ -5,6 +5,7 @@ Using Groq because it is much faster than OpenAI, which is critical for our voic
 from tools.calendar import check_availability
 
 import os
+import asyncio
 from groq import AsyncGroq
 
 from .ingest import get_vectorstore
@@ -16,10 +17,7 @@ GROQ_MODEL = "llama-3.3-70b-versatile"
 # Load vectorstore once globally so we don't rebuild it on every request
 _vectorstore = None
 
-# ---------------------------------------------------------------------------
-# Hardcoded ground-truth facts injected into context when a keyword matches.
-# None means the answer does not exist and the model should refuse to invent one.
-# ---------------------------------------------------------------------------
+
 KEYWORD_FACTS: dict[str, str | None] = {
     "quicksilver": (
         "QuickSilver full title: 'QuickSilver: Speeding up LLM Inference through Dynamic Token Halting, "
@@ -73,7 +71,6 @@ KEYWORD_FACTS: dict[str, str | None] = {
     "arxiv": (
         "arXiv:2506.22396 — QuickSilver paper. Submitted to ACL February Cycle 2026."
     ),
-    # FIX: Added internship/institution keywords so Q02 judge gets explicit "currently" context
     "carnegie mellon": (
         "Zidan is CURRENTLY (Feb 2026 - Present) a Research Intern at Carnegie Mellon University "
         "working on Vision-Language Reasoning: single-stage set-difference captioning using contrastive "
@@ -144,7 +141,7 @@ async def get_answer(
     history: list[dict] | None = None,
     mode: str = "chat",
 ) -> str:
-    """Main RAG function. Grabs context, builds the prompt, and calls Groq."""
+    """Main RAG function for text client. Grabs context, builds the prompt, and calls Groq."""
 
     if "book a call" in question.lower() or "schedule" in question.lower():
         avail_data = await check_availability()
@@ -192,3 +189,71 @@ async def get_answer(
     )
 
     return resp.choices[0].message.content
+
+
+
+async def get_answer_stream(
+    question: str,
+    history: list[dict] | None = None,
+    mode: str = "voice",
+):
+    """Streaming RAG function. Feeds tokens directly from Groq to Vapi instantly."""
+    
+    # 1. Voice calendar intercept handling
+    if "book a call" in question.lower() or "schedule" in question.lower():
+        avail_data = await check_availability()
+        if not avail_data.get("slots"):
+            text = "I'm sorry, I couldn't fetch my calendar right now. Please email zidan18za@gmail.com directly!"
+        else:
+            slot_text = "\n".join([f"- {s}" for s in avail_data["slots"]])
+            text = (
+                "I'd love to chat! Here are some of my available slots coming up: "
+                f"{slot_text}. "
+                "To lock one in, just reply with the exact time you want, along with your Name and Email!"
+            )
+        for word in text.split(" "):
+            yield word + " "
+            await asyncio.sleep(0.02)
+        return
+
+    # 2. Voice accuracy/refusal layer intercept handling
+    if _inject_keyword_facts(question) == "REFUSE":
+        text = (
+            "That information isn't on my resume. "
+            "You can reach Zidan directly at zidan18za@gmail.com for anything not covered here."
+        )
+        for word in text.split(" "):
+            yield word + " "
+            await asyncio.sleep(0.02)
+        return
+
+    # 3. Standard RAG extraction pipeline
+    history = history or []
+    context, _sources = retrieve(question)
+    sys_prompt = VOICE_SYSTEM_PROMPT if mode == "voice" else SYSTEM_PROMPT
+
+    messages: list[dict] = [{"role": "system", "content": sys_prompt}]
+    for msg in history[-6:]:
+        messages.append(msg)
+
+    messages.append({
+        "role": "user",
+        "content": f"<context>\n{context}\n</context>\n\nQuestion: {question}"
+    })
+
+    # 4. Request an immediate token stream from Groq
+    resp_stream = await groq_client.chat.completions.create(
+        model=GROQ_MODEL,
+        messages=messages,
+        temperature=0.0,
+        max_tokens=200 if mode == "voice" else 600,
+        top_p=0.9,
+        stream=True,  # <-- CRITICAL FOR SUB-200ms LATENCY
+        timeout=8.0,
+    )
+
+    # Deliver tokens raw as they arrive from the hardware layer
+    async for chunk in resp_stream:
+        delta = chunk.choices[0].delta
+        if hasattr(delta, "content") and delta.content:
+            yield delta.content

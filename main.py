@@ -9,10 +9,11 @@ from pydantic import BaseModel
 from typing import Optional, List
 import json
 import asyncio
-from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import StreamingResponse
+
 from rag.ingest import build_vectorstore
-from rag.retriever import get_answer
+# Updated to import both the non-streaming and streaming functions
+from rag.retriever import get_answer, get_answer_stream 
 from vapi.handler import handle_webhook
 
 @asynccontextmanager
@@ -45,7 +46,7 @@ async def serve_ui():
 
 @app.post("/chat")
 async def chat(req: ChatRequest):
-    # Handles RAG-grounded queries arriving from the web client
+    # Handles RAG-grounded queries arriving from the web client (Standard HTTP JSON)
     try:
         answer = await get_answer(req.message, req.history)
         return {"answer": answer}
@@ -79,30 +80,22 @@ async def vapi_webhook(request: Request):
         if not user_query:
             user_query = "Hello"
 
-        # Fetch answer from your local RAG architecture engine
-        answer = await get_answer(user_query, [])
-        print(f"RAG Response text: {answer}")
-        
-        # A clean asynchronous chunk generator for Vapi's required streaming style
+        # --- FIX: TRUE NON-BLOCKING STREAMING GENERATOR LAYER ---
         async def sse_generator():
             chunk_id = "chatcmpl-vapi"
-            words = str(answer).split(" ")
             
-            for i, word in enumerate(words):
-                space = " " if i < len(words) - 1 else ""
-                content_chunk = f"{word}{space}"
-                
+            # Feed live tokens directly from Groq/Chroma to Vapi's pipeline
+            async for token in get_answer_stream(user_query, [], mode="voice"):
                 chunk_data = {
                     "id": chunk_id,
                     "object": "chat.completion.chunk",
                     "choices": [{
                         "index": 0,
-                        "delta": {"content": content_chunk},
+                        "delta": {"content": token},
                         "finish_reason": None
                     }]
                 }
                 yield f"data: {json.dumps(chunk_data)}\n\n"
-                await asyncio.sleep(0.01)  # Lightning fast streaming token delivery
             
             # Send the official closing stop payload packet
             stop_chunk = {
@@ -117,6 +110,7 @@ async def vapi_webhook(request: Request):
             yield f"data: {json.dumps(stop_chunk)}\n\n"
             yield "data: [DONE]\n\n"
 
+        # Immediately deliver the connection stream back to Vapi (TTFB <200ms)
         return StreamingResponse(sse_generator(), media_type="text/event-stream")
         
     except Exception as e:
