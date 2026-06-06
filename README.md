@@ -1,4 +1,4 @@
-# Zidan Ahmed — AI Persona
+# AI Persona
 
 RAG-grounded AI representative built for Scaler's AI Engineer screening assignment.
 Answers questions about my background, research, and GitHub repos. Books interviews via Cal.com.
